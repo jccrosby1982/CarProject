@@ -7,7 +7,7 @@ The range readings are in units of mm. */
 #include <VL6180X.h>
 
 #define defaultSpeed 85
-#define correctionSpeed 120
+#define correctionSpeed 110
 
 VL6180X sensor1;
 VL6180X sensor2;
@@ -76,8 +76,26 @@ void loop()
   s3_val = sensor3.readRangeSingleMillimeters();
   printLaserReadings();
   Serial.println( (int)s2_val - (int)s3_val);
-  if(sensor1.readRangeSingleMillimeters() > 80){
+  if(s1_val > 80 && s2_val > 15 && s3_val > 15){
     drive_straight();
+  }
+  else if(s2_val <= 15){
+    //backup and slightly turn right
+    car_stop();
+    delay(500);
+    while(sensor2.readRangeSingleMillimeters() <= 25){
+      backward();
+    }
+    car_stop();
+  }
+  else if(s3_val <= 15){
+    //backup and slightly turn left
+    car_stop();
+    delay(500);
+    while(sensor2.readRangeSingleMillimeters() <= 25){
+      backward();
+    }
+    car_stop();
   }
   else{
     car_stop();
@@ -87,18 +105,20 @@ void loop()
 }
 
 void drive_straight(){
-    
-    if( (int)s2_val - (int)s3_val < -4){
+    if( (int)s2_val - (int)s3_val < -8){
     //slight turn right
-    analogWrite(10, correctionSpeed); 
+    analogWrite(10, correctionSpeed);
+    analogWrite(9, defaultSpeed);
+     
     Serial.println("Value was negative");
     Serial.println((int)s2_val - (int)s3_val);
   }
-  else if( (int)s2_val - (int)s3_val > 4){
+  else if( (int)s2_val - (int)s3_val > 8){
     //slight turn left
     Serial.println("Value was positive");
     Serial.println((int)s2_val - (int)s3_val);
     analogWrite(9, correctionSpeed);
+    analogWrite(10, defaultSpeed);
   }
   else{
     forward();
@@ -106,24 +126,28 @@ void drive_straight(){
 }
 
 void backward(){
-  analogWrite(9, defaultSpeed);
   digitalWrite(8, HIGH);
   digitalWrite(11, LOW);
-  analogWrite(10, defaultSpeed);
   digitalWrite(12, LOW);
   digitalWrite(13, HIGH);
+  analogWrite(9, defaultSpeed);
+  analogWrite(10, defaultSpeed);
 }
 void car_stop(){
+  digitalWrite(8, HIGH);
+  digitalWrite(11, HIGH);
+  digitalWrite(12, HIGH);
+  digitalWrite(13, HIGH);
   analogWrite(9, 0);
   analogWrite(10, 0);
 }
 void forward(){
-  analogWrite(9, defaultSpeed);
   digitalWrite(8, LOW);
   digitalWrite(11, HIGH);
-  analogWrite(10, defaultSpeed);
   digitalWrite(12, HIGH);
   digitalWrite(13, LOW);  
+  analogWrite(9, defaultSpeed);
+  analogWrite(10, defaultSpeed);
 }
 
 void printLaserReadings(){

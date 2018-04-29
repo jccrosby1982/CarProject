@@ -6,9 +6,15 @@ The range readings are in units of mm. */
 #include <Wire.h>
 #include <VL6180X.h>
 
-#define defaultSpeed 75 // was 85
-#define correctionSpeed 100 // was 110
-#define turnSpeed 150
+#define defaultSpeed 135  // was 135
+#define correctionSpeed 190 // was 190
+#define turnSpeed 220 // was 220
+#define STRAIGHT 0
+#define LEFT 1
+#define RIGHT 2
+#define SPECIAL 3
+int turn_index = 0;
+int turns[] = {LEFT, STRAIGHT, RIGHT, LEFT, RIGHT, STRAIGHT};
 
 VL6180X sensor1;
 VL6180X sensor2;
@@ -65,27 +71,56 @@ void setup()
   pinMode(10, OUTPUT);
   pinMode(12, OUTPUT);
   pinMode(13, OUTPUT);
+  delay(5000);
 }
 
 //front sensor = 1
 //lhs sensor = 2
 //rhs sensor = 3
-void loop(){
+void loop_old(){
   delay(3000);
-  rotateRight();
+  //rotateRight();
 }
-void loop_old() 
+void loop() 
 { 
   s1_val = sensor1.readRangeSingleMillimeters();
   s2_val = sensor2.readRangeSingleMillimeters();
   s3_val = sensor3.readRangeSingleMillimeters();
   //printLaserReadings();
   //Serial.println( (int)s2_val - (int)s3_val);
-  if(s1_val > 80 && s2_val > 15 && s3_val > 15){
+  printLaserReadings();
+  if(in_intersection(s1_val, s2_val, s3_val)){
+    Serial.println("Found Intersection, waiting until middle");
+    forward(); 
+    delay(600);
+    car_stop();
+    delay(3000);
+    switch(turns[turn_index]){
+      case LEFT:
+          Serial.println("Turn left at intersection.");
+          rotateLeft();
+          break;
+      case RIGHT:
+          Serial.println("Turn right at intersection.");
+          rotateRight();
+          break;
+      default:
+          Serial.println("Go straight at intersection.");
+          break;
+    }
+    while(sensor2.readRangeSingleMillimeters() == 255 || sensor3.readRangeSingleMillimeters() == 255) {
+      Serial.println("Driving through intersection");
+      forward();
+    }
+    Serial.println("Car is through intersection");
+    ++turn_index;
+    car_stop();
+  }
+  if((s1_val > 80 || s1_val == 0) && s2_val > 15 && s3_val > 15){
     Serial.println("Go straight");
     drive_straight();
   }
-  else if(s2_val <= 15){
+  else if(s2_val <= 25){
     Serial.println("Begin right correction:");
     //backup and slightly turn right
     Serial.println("Stop car");
@@ -101,7 +136,7 @@ void loop_old()
     Serial.println("Finished back up right. Stop.");
     car_stop();
   }
-  else if(s3_val <= 15){
+  else if(s3_val <= 35){
     Serial.println("Begin left correction:");
     //backup and slightly turn left
     Serial.println("Stop car");
@@ -109,7 +144,7 @@ void loop_old()
     delay(500);
     Serial.println("Back up left");
     // Back up to release car from wall.
-    while(sensor3.readRangeSingleMillimeters() <= 25){
+    while(sensor3.readRangeSingleMillimeters() <= 35){
       Serial.println("In back-up left loop");
       backward();
     }
@@ -125,13 +160,12 @@ void loop_old()
   
   //delay(100);
 }
-
 void drive_straight(){
     digitalWrite(8, LOW);
     digitalWrite(11, HIGH);
     digitalWrite(12, HIGH);
     digitalWrite(13, LOW);  
-    if( (int)s2_val - (int)s3_val < -8){
+    if( (int)s2_val - (int)s3_val < -15){
     //slight turn right
     Serial.println("Slight correction right.");
     analogWrite(10, correctionSpeed);
@@ -139,7 +173,7 @@ void drive_straight(){
     //Serial.println("Value was negative");
     //Serial.println((int)s2_val - (int)s3_val);
   }
-  else if( (int)s2_val - (int)s3_val > 8){
+  else if( (int)s2_val - (int)s3_val >  15){
     //slight turn left
     //Serial.println("Value was positive");
     //Serial.println((int)s2_val - (int)s3_val);
@@ -231,9 +265,32 @@ void rotateLeft(){
   digitalWrite(11, HIGH);
   digitalWrite(12, LOW);
   digitalWrite(13, HIGH);
-  analogWrite(9, defaultSpeed);
-  analogWrite(10, defaultSpeed);
-  delay(1000);
+  analogWrite(9, turnSpeed);
+  analogWrite(10, turnSpeed);
+  delay(300);
   car_stop();
+}
+
+void start_intersection(){
+  while(sensor2.readRangeSingleMillimeters() != 255 || sensor1.readRangeSingleMillimeters() != 255){
+    Serial.println("Waiting to be placed in start intersection.");
+    delay(200);
+  }
+  Serial.println("In intersection.");
+}
+
+bool in_intersection(uint16_t s1, uint16_t s2, uint16_t s3){
+  switch(turn_index){
+    case 0:
+      return s2 == 255;
+    case 1:
+      return s2 == 255 && s3 == 255;
+    case 2: 
+      return s2 == 255 && s3 == 255;
+    case 3:
+      return s2 == 255;
+    case 4:
+      return s1 == 255 && s2 == 255;
+  }
 }
 

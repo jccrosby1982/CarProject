@@ -7,14 +7,14 @@ The range readings are in units of mm. */
 #include <VL6180X.h>
 
 #define defaultSpeed 135  // was 135
-#define correctionSpeed 170 // was 190
+#define correctionSpeed 190 // was 190
 #define turnSpeed 220 // was 220
 #define STRAIGHT 0
 #define LEFT 1
 #define RIGHT 2
 #define SPECIAL 3
 int turn_index = 0;
-int turns[] = {STRAIGHT, LEFT, STRAIGHT, RIGHT, LEFT, RIGHT, STRAIGHT};
+int turns[] = {LEFT, STRAIGHT, RIGHT, LEFT, RIGHT, STRAIGHT};
 
 VL6180X sensor1;
 VL6180X sensor2;
@@ -108,7 +108,7 @@ void loop()
           Serial.println("Go straight at intersection.");
           break;
     }
-    while((sensor2.readRangeSingleMillimeters() == 255 || sensor3.readRangeSingleMillimeters() == 255) && sensor1.readRangeSingleMillimeters() > 55) {
+    while(sensor2.readRangeSingleMillimeters() == 255 || sensor3.readRangeSingleMillimeters() == 255) {
       Serial.println("Driving through intersection");
       forward();
     }
@@ -120,14 +120,14 @@ void loop()
     Serial.println("Go straight");
     drive_straight();
   }
-  else if(s2_val <= 35){
+  else if(s2_val <= 25){
     Serial.println("Begin right correction:");
     //backup and slightly turn right
     Serial.println("Stop car");
     car_stop();
     delay(500);
     Serial.println("Back up right");
-    while(sensor2.readRangeSingleMillimeters() <= 35){
+    while(sensor2.readRangeSingleMillimeters() <= 25){
       Serial.println("In back-up right loop");
       backward();
     }
@@ -282,16 +282,14 @@ void start_intersection(){
 bool in_intersection(uint16_t s1, uint16_t s2, uint16_t s3){
   switch(turn_index){
     case 0:
-      return s2 == 255 && s1 == 255;
+      return s2 == 255;
     case 1:
+      return s2 == 255 && s3 == 255;
+    case 2: 
+      return s2 == 255 && s3 == 255;
+    case 3:
       return s2 == 255;
-    case 2:
-      return s2 == 255 && s3 == 255;
-    case 3: 
-      return s2 == 255 && s3 == 255;
     case 4:
-      return s2 == 255;
-    case 5:
       return s1 == 255 && s2 == 255;
     default:
       return false;
